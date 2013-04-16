@@ -1,23 +1,26 @@
 package eu.nazgee.simple;
 
+import java.io.IOException;
+import java.util.HashMap;
+
 import org.andengine.engine.camera.Camera;
 import org.andengine.engine.options.EngineOptions;
 import org.andengine.engine.options.ScreenOrientation;
 import org.andengine.engine.options.resolutionpolicy.RatioResolutionPolicy;
 import org.andengine.entity.scene.Scene;
-import org.andengine.entity.scene.background.Background;
-import org.andengine.entity.sprite.Sprite;
-import org.andengine.entity.util.FPSLogger;
+import org.andengine.extension.rubeloader.SimpleLoader.ITextureProvider;
 import org.andengine.opengl.texture.TextureOptions;
 import org.andengine.opengl.texture.atlas.bitmap.BitmapTextureAtlas;
 import org.andengine.opengl.texture.atlas.bitmap.BitmapTextureAtlasTextureRegionFactory;
+import org.andengine.opengl.texture.atlas.bitmap.BuildableBitmapTextureAtlas;
+import org.andengine.opengl.texture.atlas.bitmap.source.IBitmapTextureAtlasSource;
+import org.andengine.opengl.texture.atlas.buildable.builder.BlackPawnTextureAtlasBuilder;
+import org.andengine.opengl.texture.atlas.buildable.builder.ITextureAtlasBuilder.TextureAtlasBuilderException;
 import org.andengine.opengl.texture.region.ITextureRegion;
-import org.andengine.ui.activity.SimpleAsyncGameActivity;
-import org.andengine.util.progress.IProgressListener;
+import org.andengine.ui.activity.SimpleBaseGameActivity;
+import org.andengine.util.debug.Debug;
 
-import android.util.Log;
-
-public class SimpleActivity extends SimpleAsyncGameActivity {
+public class SimpleActivity extends SimpleBaseGameActivity implements ITextureProvider {
 	// ===========================================================
 	// Constants
 	// ===========================================================
@@ -29,8 +32,8 @@ public class SimpleActivity extends SimpleAsyncGameActivity {
 	// Fields
 	// ===========================================================
 
-	private BitmapTextureAtlas mBitmapTextureAtlas;
-	private ITextureRegion mFaceTextureRegion;
+	private BuildableBitmapTextureAtlas mBitmapTextureAtlas;
+	private HashMap<String, ITextureRegion> mTexturesMap = new HashMap<String, ITextureRegion>();
 
 	// ===========================================================
 	// Constructors
@@ -47,48 +50,39 @@ public class SimpleActivity extends SimpleAsyncGameActivity {
 	@Override
 	public EngineOptions onCreateEngineOptions() {
 		final Camera camera = new Camera(0, 0, SimpleActivity.CAMERA_WIDTH, SimpleActivity.CAMERA_HEIGHT);
-		return new EngineOptions(true, ScreenOrientation.LANDSCAPE_SENSOR, new RatioResolutionPolicy(SimpleActivity.CAMERA_WIDTH, SimpleActivity.CAMERA_HEIGHT), camera);
+		return new EngineOptions(true, ScreenOrientation.LANDSCAPE_FIXED, new RatioResolutionPolicy(SimpleActivity.CAMERA_WIDTH, SimpleActivity.CAMERA_HEIGHT), camera);
 	}
 
 	@Override
-	public void onCreateResourcesAsync(final IProgressListener pProgressListener) throws Exception {
-		/* Comfortably load the resources asynchronously, adding artificial pauses between each step. */
-		pProgressListener.onProgressChanged(0);
-		Thread.sleep(1000);
-		pProgressListener.onProgressChanged(20);
+	protected void onCreateResources() throws IOException {
 		BitmapTextureAtlasTextureRegionFactory.setAssetBasePath("gfx/");
-		Thread.sleep(1000);
-		this.mBitmapTextureAtlas = new BitmapTextureAtlas(this.getTextureManager(), 32, 32, TextureOptions.BILINEAR);
-		pProgressListener.onProgressChanged(40);
-		Thread.sleep(1000);
-		this.mFaceTextureRegion = BitmapTextureAtlasTextureRegionFactory.createFromAsset(SimpleActivity.this.mBitmapTextureAtlas, SimpleActivity.this, "face_box.png", 0, 0);
-		pProgressListener.onProgressChanged(60);
-		Thread.sleep(1000);
-		this.mBitmapTextureAtlas.load();
-		pProgressListener.onProgressChanged(80);
-		Thread.sleep(1000);
-		pProgressListener.onProgressChanged(100);
+
+		this.mBitmapTextureAtlas = new BuildableBitmapTextureAtlas(this.getTextureManager(), 512, 512, TextureOptions.BILINEAR);
+
+		loadAndStore("ae.png");
+		loadAndStore("wood.png");
+
+		try {
+			this.mBitmapTextureAtlas.build(new BlackPawnTextureAtlasBuilder<IBitmapTextureAtlasSource, BitmapTextureAtlas>(0, 0, 1));
+			this.mBitmapTextureAtlas.load();
+		} catch (TextureAtlasBuilderException e) {
+			Debug.e(e);
+		}
+	}
+
+	protected void loadAndStore(final String pName) {
+		ITextureRegion region = BitmapTextureAtlasTextureRegionFactory.createFromAsset(this.mBitmapTextureAtlas, this, pName);
+		mTexturesMap.put(pName, region);
 	}
 
 	@Override
-	public Scene onCreateSceneAsync(final IProgressListener pProgressListener) throws Exception {
-		this.mEngine.registerUpdateHandler(new FPSLogger());
-
-		final Scene scene = new Scene();
-		scene.setBackground(new Background(0.09804f, 0.6274f, 0.8784f));
-
-		return scene;
+	protected Scene onCreateScene() {
+		return new RubeScene(this, getResources(), getEngine().getVertexBufferObjectManager(), R.raw.ae_example);
 	}
 
 	@Override
-	public void onPopulateSceneAsync(final Scene pScene, final IProgressListener pProgressListener) throws Exception {
-		/* Calculate the coordinates for the face, so its centered on the camera. */
-		final float centerX = (SimpleActivity.CAMERA_WIDTH - this.mFaceTextureRegion.getWidth()) / 2;
-		final float centerY = (SimpleActivity.CAMERA_HEIGHT - this.mFaceTextureRegion.getHeight()) / 2;
-
-		/* Create the face and add it to the scene. */
-		final Sprite face = new Sprite(centerX, centerY, this.mFaceTextureRegion, this.getVertexBufferObjectManager());
-		pScene.attachChild(face);
+	public ITextureRegion get(String pFileName) {
+		return mTexturesMap.get(pFileName);
 	}
 
 	// ===========================================================
