@@ -57,10 +57,12 @@ public class SimpleActivity extends SimpleBaseGameActivity implements ITexturePr
 	protected void onCreateResources() throws IOException {
 		BitmapTextureAtlasTextureRegionFactory.setAssetBasePath("gfx/");
 
-		this.mBitmapTextureAtlas = new BuildableBitmapTextureAtlas(this.getTextureManager(), 512, 512, TextureOptions.BILINEAR);
+		this.mBitmapTextureAtlas = new BuildableBitmapTextureAtlas(this.getTextureManager(), 1024, 1024, TextureOptions.BILINEAR);
 
 		loadAndStore("ae.png");
 		loadAndStore("wood.png");
+		loadAndStore("star.png");
+		loadAndStore("bg.png");
 
 		try {
 			this.mBitmapTextureAtlas.build(new BlackPawnTextureAtlasBuilder<IBitmapTextureAtlasSource, BitmapTextureAtlas>(0, 0, 1));
